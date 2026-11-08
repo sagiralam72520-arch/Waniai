@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101827">
+<title>GuidePrep Bingo</title>
+<style>
+:root{--bg:#101827;--panel:#1b2940;--panel2:#243550;--text:#f4f7fb;--muted:#aab8cc;--accent:#6ee7b7;--accent2:#60a5fa;--danger:#fb7185}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#101827,#172943);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+header{text-align:center;padding:25px 14px 12px}h1{margin:0;font-size:clamp(27px,5vw,42px)}header p{color:var(--muted);margin:7px 0}
+main{max-width:1050px;margin:auto;padding:12px}
+.panel{background:var(--panel);border:1px solid #344660;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 10px 30px #0003}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
+button,select{font:inherit;border:0;border-radius:11px;padding:11px 15px;font-weight:700}
+button{background:var(--accent);color:#10251e;cursor:pointer}button.secondary{background:var(--panel2);color:var(--text);border:1px solid #526782}button:disabled{opacity:.45;cursor:not-allowed}
+select{background:var(--panel2);color:var(--text);border:1px solid #526782}
+.status{text-align:center;color:var(--muted);margin:12px 0}.current{text-align:center;font-size:clamp(34px,8vw,58px);font-weight:900;color:var(--accent);margin:6px}
+.called{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px}.called span{background:var(--panel2);padding:5px 8px;border-radius:7px;font-size:13px}
+.boards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+.board-wrap{background:#17243a;border-radius:14px;padding:12px;min-width:0}.board-wrap h2{text-align:center;font-size:18px;margin:3px 0 10px}
+.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.cell{aspect-ratio:1;background:#eaf1f8;color:#17243a;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:850;font-size:clamp(15px,4vw,22px);padding:0;min-width:0}
+.cell.marked{background:var(--accent);color:#103426;box-shadow:inset 0 0 0 3px #25a879}
+.cell.free{background:#fcd34d;color:#3d2b00}
+.cell:not(:disabled):active{transform:scale(.96)}
+.legend{text-align:center;color:var(--muted);font-size:13px;margin-top:9px}
+footer{text-align:center;color:var(--muted);padding:18px;font-size:13px}
+@media(max-width:420px){main{padding:8px}.panel{padding:12px}.board-wrap{padding:9px}.board{gap:4px}.cell{border-radius:7px}}
+</style>
+</head>
+<body>
+<header><h1>🎯 GuidePrep Bingo</h1><p>Play Bingo solo or with a friend</p></header>
+<main>
+<section class="panel">
+ <div class="controls">
+  <label for="mode">Players:</label>
+  <select id="mode"><option value="1">Single player</option><option value="2">2 players (same device)</option></select>
+  <button id="newGame">New game</button>
+  <button id="callBtn" class="secondary" disabled>Call next number</button>
+ </div>
+ <div class="status" id="status">Choose players and press New game.</div>
+ <div class="current" id="current">—</div>
+ <div class="status" id="counter">0 numbers called</div>
+ <div class="called" id="called"></div>
+</section>
+<section class="panel">
+ <div class="boards" id="boards">
+  <p class="status">Your Bingo cards will appear here.</p>
+ </div>
+ <div class="legend">Tap a square only after its number has been called. The centre FREE square is already marked.</div>
+</section>
+</main>
+<footer>GuidePrep Bingo • Works in your browser • No account needed</footer>
+<script>
+const modeEl=document.getElementById('mode'),newBtn=document.getElementById('newGame'),callBtn=document.getElementById('callBtn');
+const statusEl=document.getElementById('status'),currentEl=document.getElementById('current'),counterEl=document.getElementById('counter'),calledEl=document.getElementById('called'),boardsEl=document.getElementById('boards');
+let players=[],called=[],remaining=[],gameOver=false;
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function makeCard(){const ranges=[[1,15],[16,30],[31,45],[46,60],[61,75]];let cols=ranges.map(([lo,hi])=>shuffle(Array.from({length:hi-lo+1},(_,i)=>lo+i)).slice(0,5));let card=Array.from({length:5},(_,r)=>Array.from({length:5},(_,c)=>cols[c][r]));card[2][2]='FREE';return card}
+function newGame(){
+ const count=Number(modeEl.value);players=Array.from({length:count},(_,i)=>({name:`Player ${i+1}`,card:makeCard(),marks:new Set(['FREE'])}));
+ called=[];remaining=shuffle(Array.from({length:75},(_,i)=>i+1));gameOver=false;
+ currentEl.textContent='—';calledEl.innerHTML='';counterEl.textContent='0 numbers called';statusEl.textContent='Game started! Call a number, then mark it on your card.';
+ callBtn.disabled=false;renderBoards();
+}
+function renderBoards(){
+ boardsEl.innerHTML='';
+ players.forEach((p,pi)=>{
+  const wrap=document.createElement('div');wrap.className='board-wrap';
+  const heading=document.createElement('h2');heading.textContent=p.name;wrap.appendChild(heading);
+  const grid=document.createElement('div');grid.className='board';
+  p.card.flat().forEach((num,idx)=>{
+   const b=document.createElement('button');b.className='cell';b.textContent=num;
+   if(p.marks.has(num))b.classList.add(num==='FREE'?'free':'marked');
+   b.disabled=gameOver||num==='FREE'||!called.includes(num);
+   b.setAttribute('aria-label',`${p.name}, ${num}${p.marks.has(num)?', marked':''}`);
+   b.addEventListener('click',()=>{p.marks.add(num);renderBoards();if(hasBingo(p)){gameOver=true;callBtn.disabled=true;statusEl.textContent=`🎉 ${p.name} wins Bingo! Start a new game to play again.`;renderBoards()}});
+   grid.appendChild(b);
+  });
+  wrap.appendChild(grid);boardsEl.appendChild(wrap);
+ });
+}
+function hasBingo(p){
+ const lines=[];
+ for(let r=0;r<5;r++)lines.push(p.card[r]);
+ for(let c=0;c<5;c++)lines.push(p.card.map(row=>row[c]));
+ lines.push(p.card.map((row,i)=>row[i]),p.card.map((row,i)=>row[4-i]));
+ return lines.some(line=>line.every(n=>p.marks.has(n)));
+}
+function callNext(){
+ if(gameOver||remaining.length===0)return;
+ const n=remaining.pop();called.push(n);currentEl.textContent=n;counterEl.textContent=`${called.length} number${called.length===1?'':'s'} called`;
+ const tag=document.createElement('span');tag.textContent=n;calledEl.prepend(tag);
+ statusEl.textContent=`Number ${n} called. Find it and tap it on your card.`;
+ renderBoards();
+ if(remaining.length===0)callBtn.disabled=true;
+}
+newBtn.addEventListener('click',newGame);callBtn.addEventListener('click',callNext);
+modeEl.addEventListener('change',()=>{if(players.length)newGame()});
+</script>
+</body>
+</html>
